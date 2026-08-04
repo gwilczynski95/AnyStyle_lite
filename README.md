@@ -103,7 +103,9 @@ Example training configs are available in `config/experiment` folder:
 -  `dl3dv_head.yaml` for simple clip embedding injection to gaussian head, 
 - `dl3dv_aggregator.yaml` with injection to aggregator.   
 
-To optimize only colors / colors+rotations / colors+scales+rotations+opacities use params: `style_geom_features: none`, `style_geom_features: colors-rotations` or `style_geom_features: no-pos` accordingly.
+To optimize only colors / colors+rotations / colors+scales+rotations+opacities use params: `style_geom_features: none`, `style_geom_features: colors-rotations` or `style_geom_features: no-pos` accordingly.  
+
+We trained our models on 1 GPU.
 
 ### Couple of warnings
 
