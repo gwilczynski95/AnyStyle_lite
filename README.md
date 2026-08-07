@@ -2,8 +2,9 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2602.04043"><img src="https://img.shields.io/badge/arXiv-2602.04043-b31b1b.svg" alt="arXiv"></a>
-  &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="https://anystyle3dgs.github.io/"><img src="https://img.shields.io/badge/Project_page-AnyStyle-blue" alt="Website"></a>
+  <a href="https://zenodo.org/records/18816747"><img src="https://img.shields.io/badge/Checkpoints-Zenodo-orange" alt="Website"></a>
+  <a href="https://drive.google.com/file/d/1zpmDbjFvJsRw6th1Jmr3fNr1OzlzrY1p/view?usp=sharing"><img src="https://img.shields.io/badge/Full paper and Supplementary material-darkgreen" alt="Website"></a>
 </p>
 
 <p align="center">
