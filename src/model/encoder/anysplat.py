@@ -138,8 +138,10 @@ class EncoderAnySplat(Encoder[EncoderAnySplatCfg]):
 
     def __init__(self, cfg: EncoderAnySplatCfg) -> None:
         super().__init__(cfg)
-        model_full = VGGT.from_pretrained("facebook/VGGT-1B")
-        # model_full = VGGT()
+        # The released simple-injection checkpoint contains the VGGT backbone
+        # and heads. Build the architecture only; downloading VGGT-1B here
+        # would duplicate several GiB of weights before loading that checkpoint.
+        model_full = VGGT()
         self.aggregator = model_full.aggregator.to(torch.bfloat16) #potentially fix_precision_jk
         self.freeze_backbone = cfg.freeze_backbone
         self.distill = cfg.distill

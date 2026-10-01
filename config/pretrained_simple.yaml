@@ -1,0 +1,192 @@
+model:
+  encoder:
+    backbone:
+      name: croco
+      model: ViTLarge_BaseDecoder
+      patch_embed_cls: PatchEmbedDust3R
+      asymmetry_decoder: true
+      intrinsics_embed_loc: encoder
+      intrinsics_embed_degree: 4
+      intrinsics_embed_type: token
+    name: anysplat
+    opacity_mapping:
+      initial: 0.0
+      final: 0.0
+      warm_up: 1
+    num_monocular_samples: 32
+    num_surfaces: 1
+    predict_opacity: false
+    gaussians_per_pixel: 1
+    gaussian_adapter:
+      gaussian_scale_min: 0.5
+      gaussian_scale_max: 15.0
+      sh_degree: 4
+    d_feature: 32
+    visualizer:
+      num_samples: 8
+      min_resolution: 256
+      export_ply: false
+    apply_bounds_shim: true
+    gs_params_head_type: dpt_gs
+    pose_free: true
+    pretrained_weights: ''
+    scale_align: false
+    voxel_size: 0.002
+    n_offsets: 2
+    anchor_feat_dim: 128
+    add_view: false
+    color_attr: 3D
+    mlp_type: unified
+    scaffold: true
+    intrinsics_embed_loc: encoder
+    intrinsics_embed_type: token
+    pred_pose: true
+    gs_prune: false
+    pred_head_type: depth
+    freeze_backbone: true
+    distill: false
+    render_conf: false
+    conf_threshold: 0.1
+    freeze_module: patch_embed
+    voxelize: true
+    intermediate_layer_idx:
+    - 4
+    - 11
+    - 17
+    - 23
+    use_style: true
+    style_geom_features: colors-rotations
+    cond_type: simple_injection_clip
+    text_adapter_return_identity: false
+  decoder:
+    name: splatting_cuda
+    background_color:
+    - 1.0
+    - 1.0
+    - 1.0
+    make_scale_invariant: false
+loss:
+  style:
+    style_weight: 1.0
+    content_weight: 0.05
+  clip_dir:
+    weight: 2.0
+    num_crop_per_img: 16
+    patch_loss_mult: 2.0
+    crop_size: 64
+  depth_consis:
+    weight: 0.1
+    sigma_image: null
+    use_second_derivative: false
+    loss_type: MSE
+mode: train
+data_loader:
+  train:
+    num_workers: 2
+    persistent_workers: false
+    batch_size: 1
+    seed: 1234
+    max_batch_size: 100000
+    pin_memory: false
+  test:
+    num_workers: 1
+    persistent_workers: false
+    batch_size: 1
+    seed: 2345
+    pin_memory: false
+  val:
+    num_workers: 1
+    persistent_workers: false
+    batch_size: 1
+    seed: 3456
+    pin_memory: false
+optimizer:
+  lr: 0.0001
+  warm_up_steps: 100
+  backbone_lr_multiplier: 0.05
+checkpointing:
+  load: null
+  every_n_train_steps: 1000
+  save_top_k: 10
+  save_weights_only: false
+train:
+  output_path: ${hydra.run.dir}
+  depth_mode: null
+  extended_visualization: false
+  print_log_every_n_steps: 10
+  distiller: ''
+  distill_max_steps: 1000000
+  random_context_views: false
+  wikiart_dir: ${hydra.runtime.cwd}/datasets/
+  text_prompt_ratio: 0.25
+  pose_loss_alpha: 1.0
+  pose_loss_delta: 1.0
+  cxt_depth_weight: 0.0
+  weight_pose: 10.0
+  weight_depth: 1.0
+  weight_normal: 0.0
+  skip_after_step: 3000
+  loss_threshold: -100.0
+test:
+  output_path: outputs/test-nopo
+  align_pose: true
+  pose_align_steps: 100
+  rot_opt_lr: 0.005
+  trans_opt_lr: 0.005
+  compute_scores: true
+  save_image: true
+  save_video: false
+  save_compare: true
+  generate_video: false
+  mode: inference
+  image_folder: examples/bungeenerf
+seed: 111123
+trainer:
+  max_steps: 300000
+  val_check_interval: 1000
+  gradient_clip_val: 0.5
+  num_nodes: 1
+  accumulate_grad_batches: 1
+  precision: bf16-mixed
+dataset:
+  dl3dv:
+    make_baseline_1: false
+    relative_pose: true
+    augment: true
+    background_color:
+    - 1.0
+    - 1.0
+    - 1.0
+    overfit_to_scene: null
+    skip_bad_shape: true
+    rescale_to_1cube: false
+    view_sampler:
+      name: bounded
+      num_target_views: 2
+      num_context_views: 18
+      min_distance_between_context_views: 32
+      max_distance_between_context_views: 256
+      min_distance_to_context_views: 0
+      warm_up_steps: 0
+      initial_min_distance_between_context_views: 2
+      initial_max_distance_between_context_views: 6
+      max_img_per_gpu: 36
+      min_gap_multiplier: 3
+      max_gap_multiplier: 5
+    name: dl3dv
+    roots:
+    - ${hydra.runtime.cwd}/datasets/dl3dv/
+    wikiart_dir: ${hydra.runtime.cwd}/datasets/wikiart
+    input_image_shape:
+    - 224
+    - 448
+    original_image_shape:
+    - 270
+    - 480
+    cameras_are_circular: false
+    baseline_min: 0.001
+    baseline_max: 100.0
+    max_fov: 100.0
+    avg_pose: false
+    intr_augment: true
+    normalize_by_pts3d: false

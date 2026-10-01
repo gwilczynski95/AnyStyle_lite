@@ -6,16 +6,18 @@ from math import floor
 from pathlib import Path
 
 import torch
+from dacite import from_dict
 from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config import load_typed_root_config
 from src.global_cfg import set_cfg
 from src.misc.image_io import save_image, save_interpolated_video
 from src.misc.nn_module_tools import convert_to_buffer
 from src.model.model import get_model
+from src.model.encoder.anysplat import EncoderAnySplatCfg
+from src.model.decoder.decoder_splatting_cuda import DecoderSplattingCUDACfg
 from src.model.ply_export import export_ply
 from src.utils.clip_utils import get_style_embedding, load_image
 from src.utils.clip_utils import load_model as load_clip_model
@@ -80,12 +82,27 @@ def _report_peak_vram(device: torch.device) -> None:
 def main(config_path: str, sample: int | None):
     cfg_yaml = OmegaConf.load(config_path)
 
-    run_dir = Path(cfg_yaml.run_dir)
-    hydra_cfg = load_hydra_config(run_dir)
-    cfg = load_typed_root_config(hydra_cfg)
+    # A compact deployment can keep only the inference config and one
+    # checkpoint, without recreating the original training run directory.
+    model_config = cfg_yaml.get("model_config")
+    if model_config:
+        hydra_cfg = OmegaConf.load(model_config)
+    else:
+        run_dir = Path(cfg_yaml.run_dir)
+        hydra_cfg = load_hydra_config(run_dir)
     set_cfg(hydra_cfg)
+    # The published .hydra config lacks some training-only RootCfg fields.
+    # Inference needs only the model section, so parse exactly that section.
+    encoder_cfg = from_dict(
+        data_class=EncoderAnySplatCfg,
+        data=OmegaConf.to_container(hydra_cfg.model.encoder, resolve=False),
+    )
+    decoder_cfg = from_dict(
+        data_class=DecoderSplattingCUDACfg,
+        data=OmegaConf.to_container(hydra_cfg.model.decoder, resolve=False),
+    )
 
-    if cfg_yaml.ckpt:
+    if cfg_yaml.get("ckpt"):
         ckpt_path = cfg_yaml.ckpt
     else:
         ckpt_path = find_latest_checkpoint(run_dir / "checkpoints")
@@ -95,11 +112,11 @@ def main(config_path: str, sample: int | None):
         torch.cuda.reset_peak_memory_stats(device)
     
     # cfg.model.encoder.use_style=False #quick fix if you want to check without stylization. Not parametrized on purpose
-    model = get_model(cfg.model.encoder, cfg.model.decoder)
+    model = get_model(encoder_cfg, decoder_cfg)
     finetune_ckpt = torch.load(ckpt_path, map_location=device)
     state_dict = finetune_ckpt["state_dict"]
     clean_state_dict = {k.replace("model.", "", 1): v for k, v in state_dict.items()}
-    model.load_state_dict(clean_state_dict, strict=False)
+    model.load_state_dict(clean_state_dict, strict=True)
 
     del finetune_ckpt, state_dict, clean_state_dict
     gc.collect()
@@ -111,8 +128,8 @@ def main(config_path: str, sample: int | None):
     for p in model.parameters():
         p.requires_grad = False
 
-    if cfg.model.encoder.use_style:
-        clip_model = load_clip_model()
+    if encoder_cfg.use_style:
+        clip_model = load_clip_model(ckpt_path=cfg_yaml.get("longclip_ckpt") or "src/longclip/checkpoints/longclip-B-32.pt")
         convert_to_buffer(clip_model, persistent=False)
     else:
         clip_model = None
@@ -155,7 +172,7 @@ def main(config_path: str, sample: int | None):
         # ---Text styles---
         for prompt in text_styles:
             print(f"→ Text style: {prompt}")
-            if cfg.model.encoder.use_style:
+            if encoder_cfg.use_style:
                 with torch.autocast(device_type="cuda", dtype=torch.float32):
                     style_dir = get_style_embedding(clip_model, style_prompt=prompt, adapter=model.encoder.text_adapter)
                 style_dir = (style_dir[0], None, None, style_dir[1])
@@ -198,7 +215,7 @@ def main(config_path: str, sample: int | None):
         for style_img in img_styles:
             print(f"→ Image style: {style_img}")
 
-            if cfg.model.encoder.use_style:
+            if encoder_cfg.use_style:
                 # Load style image and extract style embedding
                 style_img_raw = load_image(style_img).to(device=device)
                 style_img_dino = prepare_image_for_dino_patches(style_img_raw).unsqueeze(0)

@@ -13,7 +13,6 @@ from typing import Generic, TypeVar
 from dataclasses import fields
 import torch.nn.functional as F
 import sys
-from pytorch3d.loss import chamfer_distance
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # from src.loss.depth_anything.dpt import DepthAnything
@@ -51,6 +50,9 @@ class LossChamferDistance(Loss[LossChamferDistanceCfg, LossChamferDistanceCfgWra
         depth_dict: dict,
         global_step: int,
     ) -> Float[Tensor, ""]:
+        # Only the training-only Chamfer loss needs PyTorch3D. Import it here
+        # so image-to-3D inference does not require a CUDA PyTorch3D build.
+        from pytorch3d.loss import chamfer_distance
         # Scale the depth between the near and far planes.
         b, v, h, w, _ = depth_dict['distill_infos']['pts_all'].shape
         pred_pts = depth_dict['distill_infos']['pts_all'].flatten(0, 1)
